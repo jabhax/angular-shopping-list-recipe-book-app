@@ -1,0 +1,11 @@
+.vr {
+    display: inline-block;
+    border-left: 1px solid #ccc;
+    padding: 25px;
+    height: 1000;
+}
+
+input.ng-invalid.ng-touched,
+textarea.ng-invalid.ng-touched {
+  border: 1px solid red;
+}
