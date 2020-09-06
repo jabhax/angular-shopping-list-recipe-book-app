@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, throwError } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 import { User } from './user.model';
 
@@ -23,20 +24,9 @@ export class AuthService {
   user = new BehaviorSubject<User>(null);
   signUpEmailPasswordBaseUrl = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=';
   signInEmailPasswordBaseUrl = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=';
-  private firebaseApiKey = 'AIzaSyBRTJraJzH0nrJwfzv80HCBT4kD44B0COk';
-  private signUpEndpoint = this.signUpEmailPasswordBaseUrl + this.firebaseApiKey;
-  private signInEndpoint = this.signInEmailPasswordBaseUrl + this.firebaseApiKey;
+  private signUpEndpoint = this.signUpEmailPasswordBaseUrl + environment.firebaseAPIKey;
+  private signInEndpoint = this.signInEmailPasswordBaseUrl + environment.firebaseAPIKey;
   private tokenExpirationTimer: any;
-
-  firebaseAuthErrors = {
-    'EMAIL_EXISTS': 'This email address is already in use by another account.',
-    'OPERATION_NOT_ALLOWED': 'Password sign-in is disabled for this project.',
-    'TOO_MANY_ATTEMPTS_TRY_LATER': 'We have blocked all requests from this device due to unusual activity. Try again later.',
-    'EMAIL_NOT_FOUND': 'There is no user record corresponding to this identifier. The user may have been deleted.',
-    'INVALID_PASSWORD': 'The password is invalid or the user does not have a password.',
-    'USER_DISABLED': 'The user account has been disabled by an administrator.',
-    'UNKNOWN_AUTH_ERROR': 'An Error With Authentication Occurred!'
-  };
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -88,7 +78,7 @@ export class AuthService {
       _tokenExpirationDate: string
     } = JSON.parse(localStorage.getItem('userData'));
     if (!userData) {
-      console.log('Could not auto-login. User must login manually.')
+      console.log('[AUTH]: Could not auto-login. User must login manually.')
       return;
     }
     const loadedUser = new User(
@@ -132,14 +122,37 @@ export class AuthService {
     if (!response.error || !response.error.error) {
       return throwError('Unknown Error');
     }
-    let authErrorMsg = '';
-    if (this.firebaseAuthErrors.hasOwnProperty(response.error.error.message)) {
-      authErrorMsg = this.firebaseAuthErrors[response.error.error.message];
-    }
-    else {
-      authErrorMsg = this.firebaseAuthErrors['UNKNOWN_AUTH_ERROR'];
-    }
-    return throwError(authErrorMsg);
+    let FIREBASE_AUTH_ERRORS = {
+      'EMAIL_EXISTS': (
+        'This email address is already in use by another account.'
+      ),
+      'OPERATION_NOT_ALLOWED': (
+        'Password sign-in is disabled for this project.'
+      ),
+      'TOO_MANY_ATTEMPTS_TRY_LATER': (
+        'We have blocked all requests from this device due to unusual ' +
+        'activity. Try again later.'
+      ),
+      'EMAIL_NOT_FOUND': (
+        'There is no user record corresponding to this identifier. The ' +
+        'user may have been deleted.'
+      ),
+      'INVALID_PASSWORD': (
+        'The password is invalid or the user does not have a password.'
+      ),
+      'USER_DISABLED': (
+        'The user account has been disabled by an administrator.'
+      ),
+      'UNKNOWN_AUTH_ERROR': (
+        'An Error With Authentication Occurred!'
+      )
+    };
+    let errorMsg = (
+      FIREBASE_AUTH_ERRORS.hasOwnProperty(response.error.error.message) ?
+      FIREBASE_AUTH_ERRORS[response.error.error.message] :
+      FIREBASE_AUTH_ERRORS['UNKNOWN_AUTH_ERROR']
+    );
+    return throwError(errorMsg);
   }
 
 }

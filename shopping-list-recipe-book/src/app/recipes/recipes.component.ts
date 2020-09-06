@@ -1,5 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 
+import { LoggingService } from '../logging.service';
+
 
 @Component({
   selector: 'app-recipes',
@@ -8,9 +10,10 @@ import { Component, OnInit } from '@angular/core';
 })
 export class RecipesComponent implements OnInit {
 
-  constructor() { }
+  constructor(private loggingService: LoggingService) { }
 
   ngOnInit(): void {
+    this.loggingService.printLog('Hello from the RecipesComponent.ngOnInit()');
   }
 
 }
