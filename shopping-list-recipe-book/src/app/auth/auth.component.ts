@@ -1,11 +1,12 @@
-import { Component, ComponentFactoryResolver, ViewChild, OnDestroy } from '@angular/core';
+import { Component, ComponentFactoryResolver, ViewChild, OnDestroy, OnInit } from '@angular/core';
 import { NgForm } from '@angular/forms';
-import { Observable, Subscription } from 'rxjs';
-import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { Subscription } from 'rxjs';
 
 import { AlertComponent } from '../shared/alert/alert.component';
-import { AuthService, AuthResponseData } from './auth.service';
 import { PlaceHolderDirective } from '../shared/placeholder/placeholder.directive';
+import * as AuthActions from './store/auth.actions';
+import * as fromApp from '../store/app.reducer';
 
 
 @Component({
@@ -13,16 +14,30 @@ import { PlaceHolderDirective } from '../shared/placeholder/placeholder.directiv
   templateUrl: './auth.component.html',
   styleUrls: ['./auth.component.css']
 })
-export class AuthComponent implements OnDestroy {
+export class AuthComponent implements OnInit, OnDestroy {
   isLoginMode = true;
   isLoading = false;
   error: string = null;
   @ViewChild(PlaceHolderDirective, { static: false }) alertHost: PlaceHolderDirective;
   private closeSubscription: Subscription;
+  private storeSubscription: Subscription;
 
-  constructor(private authService: AuthService,
-              private router: Router,
-              private cmpFR: ComponentFactoryResolver) {}
+  constructor(private cmpFR: ComponentFactoryResolver,
+              private store: Store<fromApp.AppState>) {}
+
+  ngOnInit() {
+    this.storeSubscription = this.store.select('auth').subscribe(authState => {
+      this.isLoading = authState.loading;
+      this.error = authState.authError;
+      if (this.error) this.showErrorAlert(this.error);
+    });
+  }
+
+  ngOnDestroy(): void {
+    // If auth component is removed, unsubscribe from programatic component-creation
+    if (this.closeSubscription) this.closeSubscription.unsubscribe();
+    if (this.storeSubscription) this.storeSubscription.unsubscribe();
+  }
 
   onSwitchMode() {
     this.isLoginMode = !this.isLoginMode;
@@ -32,31 +47,21 @@ export class AuthComponent implements OnDestroy {
     if (!form.valid) return;
     const email = form.value.email, password = form.value.password;
     this.isLoading = true;
-
-    let authObservable: Observable<AuthResponseData>;
-    authObservable = ((this.isLoginMode) ?
-      this.authService.login(email, password) :
-      this.authService.signup(email, password)
-    );
-
-    authObservable.subscribe(
-      (responseData) => {
-        console.log('[AUTH][authObservable RESPONSE-DATA]:\n', responseData);
-        this.isLoading = false;
-        this.router.navigate(['/recipes']);
-      },
-      (errorMessage) => {
-        console.log('[AUTH][authObservable RESPONSE-ERROR]:\n', errorMessage);
-        this.error = errorMessage;
-        this.showErrorAlert(errorMessage);
-        this.isLoading = false;
-      }
-    );
+    if (this.isLoginMode) {
+      this.store.dispatch(new AuthActions.LoginStart({ email: email, password: password }));
+    } else {
+      this.store.dispatch(new AuthActions.SignupStart({ email: email, password: password }));
+    }
+    this.store.select('auth').subscribe(authState => {
+      this.isLoading = authState.loading;
+      this.error = authState.authError;
+    });
     form.reset();
   }
 
   onHandleError() {
     this.error = null;
+    this.store.dispatch(new AuthActions.ClearError());
   }
 
   private showErrorAlert(msg: string) {
@@ -69,12 +74,5 @@ export class AuthComponent implements OnDestroy {
         this.closeSubscription.unsubscribe();
         hostVCRef.clear();
     });
-  }
-
-  ngOnDestroy(): void {
-    // If auth component is removed, unsubscribe from programatic component-creation
-    if (this.closeSubscription) {
-      this.closeSubscription.unsubscribe();
-    }
   }
 }
